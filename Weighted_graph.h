@@ -14,8 +14,6 @@
  * I am the author of all modifications to
  * the provided code.
  *
- * Inspiration for usage of vector of vectors...
- * http://www.cplusplus.com/forum/articles/7459/
  *
  * The following is a list of uWaterloo User IDs of those students
  * I had discussions with in preparing this project:
@@ -39,8 +37,6 @@
 #include "Disjoint_sets.h"
 
 
-#include <vector>
-
 using namespace std;
 
 
@@ -58,7 +54,7 @@ class Weighted_graph {
 		Weighted_graph( Weighted_graph const & );
 		Weighted_graph &operator=( Weighted_graph );
 
-		vector<vector<double> > weights;
+		double * weights;
 		
 
 	public:
@@ -67,9 +63,9 @@ class Weighted_graph {
 
 		int degree( int ) const;
 		int edge_count() const;
-		std::pair<double, int> minimum_spanning_tree() const;
+		std::pair<double, int> minimum_spanning_tree(); // const was fucking shit up
 	
-		std::pair<int, int> get_min_edge(bool **);
+		std::pair<int, int> get_min_edge(bool *);
 	
 		bool insert_edge( int, int, double );
 		bool erase_edge( int, int );
@@ -95,19 +91,13 @@ Weighted_graph::Weighted_graph(const int n ): num_nodes(n){
 		throw illegal_argument();
 	}
 	
-	//num_nodes = n;
 	num_edges = 0;
-	
-	
-	weights.resize(num_nodes);
-  	for (int i = 0; i < num_nodes; ++i){
-    	weights[i].resize(num_nodes);
-    }
-    
-  
+   
+  	weights = new double[num_nodes*num_nodes];
+  	
 	for (int i = 0; i < num_nodes; i ++){
 		for (int j = 0; j < num_nodes; j++){
-			weights[i][j] = INF;
+			weights[i*num_nodes + j] = INF;
 		}
 	}
 	
@@ -116,7 +106,7 @@ Weighted_graph::Weighted_graph(const int n ): num_nodes(n){
 
 Weighted_graph::~Weighted_graph() {
 	
-	
+	delete [] weights;
 }
 
 /*
@@ -133,7 +123,7 @@ int Weighted_graph::degree(int u) const {
 	int deg = 0;
 	
 	for (int i = 0; i < num_nodes; i ++){
-		if (weights[u][i] != INF){
+		if (weights[u*num_nodes + i] != INF){
 			deg++;	
 		}
  	}
@@ -168,9 +158,10 @@ bool Weighted_graph::insert_edge( int i, int j, double d ) {
 		return false;
 	}
 	
-		
-	weights[i][j] = d;
-	weights[j][i] = d; // just to be safe, we're going to have to do both lol, for now
+	// overrides edge values
+			
+	weights[i*num_nodes + j] = d;
+	weights[j*num_nodes + i] = d; // just to be safe, we're going to have to do both lol, for now
 	
 	num_edges++;
 	return true;
@@ -193,11 +184,11 @@ bool Weighted_graph::erase_edge(int i, int j) {
 		return false;
 	}
 	
-	if (weights[i][j] == INF){
+	if (weights[i*num_nodes + j] == INF){
 	 	return false;	
 	}else{		
-		weights[i][j] = INF;
-		weights[j][i] = INF;	
+		weights[i*num_nodes + j] = INF;
+		weights[j*num_nodes + i] = INF;	
 		
 		num_edges--;
 		
@@ -214,7 +205,7 @@ void Weighted_graph::clear_edges() {
 	
 	for (int i = 0; i < num_nodes; i ++){
 		for (int j = 0; j < num_nodes; j++){
-			weights[i][j] = INF;
+			weights[i*num_nodes + j] = INF;
 		}
 	}
 	
@@ -222,72 +213,76 @@ void Weighted_graph::clear_edges() {
 	return;
 }
 
-// I need an adjacency matrix that represents the tree somewhere...
-// this function is called from the MST()
-// might need to pass the adjacency matrix in by reference lol
-// im going to simulate a priority queue with a vector matrix lol
-// tree is a copy of weights, at first
 
 /*
-
-
+Input: pointer to array representing the set of edges currently in the mst
+Output: enumeration of the two vertices representing the edge
+Looks through the array of weights for the entry (i,j) with the min value
+The corresponding entry in the boolean array must be false, for it to qualify 
 */
-// passing in the array wasnt working for some reason, so i made it a member variable..
-
-std::pair<int, int> Weighted_graph::get_min_edge(bool ** edgesInTree){
+std::pair<int, int> Weighted_graph::get_min_edge(bool * edgesInTree){
 	
 	int u = 0;
 	int v = 0;
 	double currentMinWeight = INF;
 	for (int i = 0; i < num_nodes; i++){
 		for (int j = 0; j < num_nodes; j++){ // the minus i is just for efficiency if need be
-			if (!edgesInTree[i][j] && weights[i][j] < currentMinWeight){				
+			if (!edgesInTree[num_nodes* i + j] && (weights[i*num_nodes + j] < currentMinWeight)){	// dont forget the brackets			
 				u = i;
 				v = j;
+				currentMinWeight = weights[i*num_nodes + j]; // don forget this one
 			}
 		}
-	
 	}
 	
-	edgesInTree[u][v] = true;
-	edgesInTree[v][u] = true;
-	return std::pair<int, int>(u,v);
+	edgesInTree[num_nodes*u + v] = true;
+	edgesInTree[num_nodes*v + u] = true;
+	
+	pair<int, int> minEdge(u,v);
+	return minEdge;
 }
 
 /*
 Uses Kruskal’s algorithm to find the
 minimum spanning tree. It returns the weight of the minimum spanning tree and the number of
 edges that were tested for adding into the minimum spanning tree.
-
-Assumptions: the graph is fully connected...
 */
 
-std::pair<double, int> Weighted_graph::minimum_spanning_tree() const {
+std::pair<double, int> Weighted_graph::minimum_spanning_tree(){
 	
 	double total_weight = 0;
 	int edges_tested = 0;
 	
-	// i have to sort the edges some how fuck...? or extract the edges lol, might need a heap
 	Disjoint_set S(num_nodes); 
 	
+	bool *q = new bool[num_nodes * num_nodes];
 	
-	bool **q = new bool[num_nodes][num_nodes];
+	for (int i = 0; i < num_nodes; i++){
+		for (int j = 0; j < num_nodes; j++){
+			q[i*num_nodes + j] = false;
+		}
+	}
 	
-	
-	while (S.num_sets() != 1){ 
+	while (S.num_sets() != 1 && edges_tested < num_edges){ 
 	
 		int u = 0;
 		int v = 0;
-		std::pair<int, int>(u, v) = get_min_edge(q);
+		
+		pair<int, int> minEdge = get_min_edge(q);
+		u = minEdge.first;
+		v = minEdge.second;
 		
 		if (S.find_set(u) != S.find_set(v)){
 			S.union_sets(u,v);
-			total_weight += weights[u][v];
-			edges_tested++;
+			total_weight += weights[u*num_nodes + v];
 		}
+		
+		edges_tested++;
 	}
-				
-	return std::pair<double, int>( edges_tested, total_weight );
+			
+			
+	delete [] q;	
+	return std::pair<double, int>(total_weight, edges_tested);
 }
 
 std::ostream &operator<<( std::ostream &out, Weighted_graph const &graph ) {

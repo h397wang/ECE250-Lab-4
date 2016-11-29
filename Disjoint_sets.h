@@ -89,7 +89,9 @@ Disjoint_set::~Disjoint_set() {
 	
 	for (int i = 0; i < initial_num_sets; i++){
 		delete nodes[i];
-		delete sets[i];	
+		if (sets[i] != nullptr){
+			delete sets[i];	
+		}
 	}
 	
 	delete [] nodes;
@@ -134,7 +136,6 @@ void Disjoint_set::union_sets(int node_index1, int node_index2) {
 		return;	
 	}
 
-
 	// ni1: the index of the larger set, ni2: the index of the smaller index
 	int ni1 = si1->size >= si2->size ? node_index1 : node_index2; 
 	int ni2 = si1->size < si2->size ? node_index1 : node_index2;
@@ -158,6 +159,7 @@ void Disjoint_set::union_sets(int node_index1, int node_index2) {
 	set_counter --; 
 	// delete the set_info entry that no longer exists
 	delete smaller;
+	sets[ni2] = nullptr;
 	
 	
 }

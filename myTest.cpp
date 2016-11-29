@@ -110,5 +110,21 @@ int main(){
 	cout << "Node 3 should be in set repped by node 0: " << S.find_set(3) << endl;
 	
 	
+	Weighted_graph G3(6);
+	
+	G3.insert_edge(0,1,4);
+	G3.insert_edge(1,2,1);
+	G3.insert_edge(2,3,2);
+	G3.insert_edge(3,4,3);
+	G3.insert_edge(1,4,8);
+	G3.insert_edge(4,5,2);
+	
+	pair<int, int> p = G3.minimum_spanning_tree();
+	cout << "Min weight : " << p.first << endl;
+	cout << "Edges test : " << p.second << endl;
+	
+	
+	
+	
 }
 
