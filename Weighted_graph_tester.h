@@ -45,7 +45,7 @@ class Weighted_graph_tester:public Tester<Weighted_graph> {
  *   edge_count n      edge_count    the edge count is n
  *   degree m n        degree        the degree of vertex m is n
  *   degree! m         degree        the call to degree of m returns an exception
- *   mst m d c         minimum_spanning_tree
+ *   mst d c         minimum_spanning_tree
  *                                   checks if the minimum spanning tree
  *                                   starting with vertex m is d with c edges checked
  *  Mutators

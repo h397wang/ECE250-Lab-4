@@ -54,7 +54,7 @@ class Weighted_graph {
 		Weighted_graph( Weighted_graph const & );
 		Weighted_graph &operator=( Weighted_graph );
 
-		double * weights;
+		double ** weights;
 		
 
 	public:
@@ -65,7 +65,7 @@ class Weighted_graph {
 		int edge_count() const;
 		std::pair<double, int> minimum_spanning_tree(); // const was fucking shit up
 	
-		std::pair<int, int> get_min_edge(bool *);
+		std::pair<int, int> get_min_edge(bool **);
 	
 		bool insert_edge( int, int, double );
 		bool erase_edge( int, int );
@@ -93,18 +93,24 @@ Weighted_graph::Weighted_graph(const int n ): num_nodes(n){
 	
 	num_edges = 0;
    
-  	weights = new double[num_nodes*num_nodes];
-  	
-	for (int i = 0; i < num_nodes; i ++){
-		for (int j = 0; j < num_nodes; j++){
-			weights[i*num_nodes + j] = INF;
+  	weights = new double*[num_nodes];
+  	for (int i = 0; i < num_nodes; i++){
+  		
+  		weights[i] = new double[num_nodes];
+  		
+  		for (int j = 0; j < num_nodes; j++){
+			weights[i][j] = INF;
 		}
-	}
-	
+  	}
+  		
 	
 }
 
 Weighted_graph::~Weighted_graph() {
+	
+	for (int i = 0; i < num_nodes; i++){
+		delete [] weights[i];
+	}
 	
 	delete [] weights;
 }
@@ -117,13 +123,13 @@ exception if the argument does not correspond to an existing vertex.
 int Weighted_graph::degree(int u) const {
 	
 	if (u < 0 || u > (num_nodes - 1)){
-		throw new illegal_argument();
+		throw illegal_argument();
 	}
 	
 	int deg = 0;
 	
 	for (int i = 0; i < num_nodes; i ++){
-		if (weights[u*num_nodes + i] != INF){
+		if (weights[u][i] != INF){
 			deg++;	
 		}
  	}
@@ -159,11 +165,15 @@ bool Weighted_graph::insert_edge( int i, int j, double d ) {
 	}
 	
 	// overrides edge values
-			
-	weights[i*num_nodes + j] = d;
-	weights[j*num_nodes + i] = d; // just to be safe, we're going to have to do both lol, for now
+	if (weights[i][j] != INF){ // then this is an override so dont increment
+		
+	}else{
+		num_edges++;
+	}
 	
-	num_edges++;
+	weights[i][j] = d;
+	weights[j][i] = d; // just to be safe, we're going to have to do both lol, for now
+	
 	return true;
 }
 
@@ -181,14 +191,14 @@ bool Weighted_graph::erase_edge(int i, int j) {
 	}
 	
 	if ( i == j ){
-		return false;
+		return true;
 	}
 	
-	if (weights[i*num_nodes + j] == INF){
+	if (weights[i][j] == INF){
 	 	return false;	
 	}else{		
-		weights[i*num_nodes + j] = INF;
-		weights[j*num_nodes + i] = INF;	
+		weights[i][j] = INF;
+		weights[j][i] = INF;	
 		
 		num_edges--;
 		
@@ -205,7 +215,7 @@ void Weighted_graph::clear_edges() {
 	
 	for (int i = 0; i < num_nodes; i ++){
 		for (int j = 0; j < num_nodes; j++){
-			weights[i*num_nodes + j] = INF;
+			weights[i][j] = INF;
 		}
 	}
 	
@@ -220,23 +230,23 @@ Output: enumeration of the two vertices representing the edge
 Looks through the array of weights for the entry (i,j) with the min value
 The corresponding entry in the boolean array must be false, for it to qualify 
 */
-std::pair<int, int> Weighted_graph::get_min_edge(bool * edgesInTree){
+std::pair<int, int> Weighted_graph::get_min_edge(bool ** edgesInTree){
 	
 	int u = 0;
 	int v = 0;
 	double currentMinWeight = INF;
 	for (int i = 0; i < num_nodes; i++){
 		for (int j = 0; j < num_nodes; j++){ // the minus i is just for efficiency if need be
-			if (!edgesInTree[num_nodes* i + j] && (weights[i*num_nodes + j] < currentMinWeight)){	// dont forget the brackets			
+			if (!edgesInTree[i][j] && (weights[i][j] < currentMinWeight)){	// dont forget the brackets			
 				u = i;
 				v = j;
-				currentMinWeight = weights[i*num_nodes + j]; // don forget this one
+				currentMinWeight = weights[i][j]; // don forget this one
 			}
 		}
 	}
 	
-	edgesInTree[num_nodes*u + v] = true;
-	edgesInTree[num_nodes*v + u] = true;
+	edgesInTree[u][v] = true;
+	edgesInTree[v][u] = true;
 	
 	pair<int, int> minEdge(u,v);
 	return minEdge;
@@ -255,11 +265,12 @@ std::pair<double, int> Weighted_graph::minimum_spanning_tree(){
 	
 	Disjoint_set S(num_nodes); 
 	
-	bool *q = new bool[num_nodes * num_nodes];
+	bool **q = new bool*[num_nodes];
 	
 	for (int i = 0; i < num_nodes; i++){
+		q[i] = new bool[num_nodes];
 		for (int j = 0; j < num_nodes; j++){
-			q[i*num_nodes + j] = false;
+			q[i][j] = false;
 		}
 	}
 	
@@ -274,13 +285,17 @@ std::pair<double, int> Weighted_graph::minimum_spanning_tree(){
 		
 		if (S.find_set(u) != S.find_set(v)){
 			S.union_sets(u,v);
-			total_weight += weights[u*num_nodes + v];
+			total_weight += weights[u][v];
 		}
 		
 		edges_tested++;
 	}
 			
 			
+	for (int i = 0; i < num_nodes; i++){
+		delete [] q[i];
+	}
+	
 	delete [] q;	
 	return std::pair<double, int>(total_weight, edges_tested);
 }
